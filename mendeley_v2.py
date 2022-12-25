@@ -34,7 +34,7 @@ def get_article(browser, article, file):
         doi = browser.find_element(By.XPATH, '//a[@data-name="doi"]').text
         doi_link = browser.find_element(By.XPATH, '//a[@data-name="doi"]').get_attribute("href")
         citate = browser.find_element(By.XPATH, '//p[@data-name="citation"]').text
-        file.write(f"{title},; {journal},; {authors},; {year},; {doi},; {doi_link},; {citate},; {abstract}\n")
+        file.write(f"{title}; {journal}; {authors}; {year}; {doi}; {doi_link}; {citate}; {abstract}\n")
     except NoSuchElementException:
         print("Broken article")
         return None
