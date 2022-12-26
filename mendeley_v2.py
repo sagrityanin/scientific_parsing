@@ -9,7 +9,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 
-search_string = "Ellenberg indicator values & vegetation changes"
+search_string = "Tsyganov Indicator values"
 key_words = []
 
 # search_string = "glycyrrhiza uralensis fisch water"
@@ -23,33 +23,36 @@ def get_article(browser, article, file):
     sleep(2)
     try:
         journal = browser.find_element(By.XPATH, '//div[@data-document-source="source"]').text
+        only_journal = browser.find_element(By.XPATH, '//div[@data-document-source="source"]').text.split("(")[0]
         year = re.search(r"(\d{4})", re.search(r"(\(\d{4}\))", journal).group(1)).group(1)
-    except Exception:
+    except Exception as e:
         journal = ""
+        only_journal = ""
         year = ""
+        # print(e)
     try:
         title = browser.find_element(By.TAG_NAME, "h1").text
         authors = ", ".join([a.text for a in browser.find_element(By.TAG_NAME, "ul").find_elements(By.TAG_NAME, "a")])
-        abstract = browser.find_element(By.XPATH, '//p[@data-name="content"]').text
+        abstract = browser.find_element(By.XPATH, '//p[@data-name="content"]').text.replace(";", ",")
         doi = browser.find_element(By.XPATH, '//a[@data-name="doi"]').text
         doi_link = browser.find_element(By.XPATH, '//a[@data-name="doi"]').get_attribute("href")
         citate = browser.find_element(By.XPATH, '//p[@data-name="citation"]').text
-        file.write(f"{title}; {journal}; {authors}; {year}; {doi}; {doi_link}; {citate}; {abstract}\n")
+        file.write(f"{title}; {only_journal}; {journal}; {authors}; {year}; {doi}; {doi_link}; {citate}; {abstract}\n")
     except NoSuchElementException:
         print("Broken article")
         return None
     try:
         key_words_list = [x.text for x in browser.find_element(
             By.XPATH, '//div[@data-name="author-supplied-keywords"]').find_elements(By.TAG_NAME, "li")]
-        key_words.append(str(doi + "; " + "; ".join(key_words_list) + "\n"))
-    except NoSuchElementException:
-        pass
+        key_words.append(str(doi + "; " + title + "; ".join(key_words_list) + "\n"))
+    except NoSuchElementException as e:
+        print(e)
     return True
 
 
 def find_element(browser, curent_url, i, file):
     browser.get(curent_url)
-    sleep(2)
+    sleep(3)
     papers = browser.find_element(By.ID, "search-results").find_elements(By.TAG_NAME, "cite")
     get_article(browser, papers[i], file)
 
@@ -59,12 +62,9 @@ def get_article_list(current_browser, file):
     papers = current_browser.find_element(By.ID, "search-results").find_elements(By.TAG_NAME, "cite")
     for i in range(len(papers)):
         print(i)
-        try:
-            get_article(current_browser, papers[i], file)
-            sleep(1)
-        except StaleElementReferenceException:
-            find_element(current_browser, current_url, i, file)
-            sleep(1)
+        find_element(current_browser, current_url, i, file)
+        sleep(1)
+        # print("Go to find element")
 
 
 def main():
@@ -72,7 +72,7 @@ def main():
         os.remove("result.csv")
     with webdriver.Chrome() as browser:
         with open("result.csv", "a") as file:
-            file.write("title; journal; authors; year; doi; doi_link; citate; abstract\n")
+            file.write("title; only_journal; journal; authors; year; doi; doi_link; citate; abstract\n")
             browser.get("https://www.mendeley.com/search/")
             browser.find_element(By.ID, "search-mendeley").send_keys(search_string)
             sleep(1)
