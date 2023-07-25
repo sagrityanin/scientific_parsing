@@ -7,18 +7,20 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.chrome.service import Service
 
 
-search_string = "Tsyganov scale"
-url = "https://www.mendeley.com/search"
-url = "https://www.mendeley.com/search/?dgcid=md_homepage&page=10&query=Tsyganov%20scale"
+search_string = 'Braun-Blanquet'
+# url = "https://www.mendeley.com/search"
+url = "https://www.mendeley.com/search/?page=180&query=Braun-Blanquet&sortBy=relevance"
 key_words = []
-
+start_page = 181
 # search_string = "glycyrrhiza uralensis fisch water"
 
 
 def get_article(browser, article, file):
     article.click()
+    sleep(1)
     WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.TAG_NAME, "ul")))
     link = browser.find_element(By.TAG_NAME, "cite").find_element(By.TAG_NAME, "a")
     link.click()
@@ -45,7 +47,7 @@ def get_article(browser, article, file):
         return None
     try:
         key_words_list = [x.text for x in browser.find_element(
-            By.XPATH, '//div[@data-name="author-supplied-keywords"]').find_elements(By.TAG_NAME, "li")]
+            By.ID, "author supplied keywords-title").find_elements(By.TAG_NAME, "li")]
         key_words.append(str(doi + "; " + title + "; ".join(key_words_list) + "\n"))
     except NoSuchElementException as e:
         print(e)
@@ -55,9 +57,9 @@ def get_article(browser, article, file):
 def find_element(browser, curent_url, i, file):
     browser.get(curent_url)
     sleep(3)
-    # papers = browser.find_element(By.ID, "search-results").find_elements(By.TAG_NAME, "cite")
-    papers = browser.find_element(By.ID, "search-results").find_element(
-        By.ID, "main-content").find_elements(By.TAG_NAME, "cite")
+    papers = browser.find_element(By.ID, "search-results").find_elements(By.TAG_NAME, "cite")
+    # papers = browser.find_element(By.ID, "search-results").find_element(
+    #     By.ID, "main-content").find_elements(By.TAG_NAME, "cite")
     get_article(browser, papers[i], file)
 
 
@@ -76,30 +78,41 @@ def get_article_list(current_browser, file):
 def main():
     if os.path.isfile("result.csv"):
         os.remove("result.csv")
-    with webdriver.Chrome() as browser:
+    service = Service(executable_path = "./chromedriver")
+    options = webdriver.ChromeOptions()
+    with webdriver.Chrome(service=service, options=options) as browser:
         with open("result.csv", "a") as file:
             file.write("title; only_journal; journal; authors; year; doi; doi_link; citate; abstract\n")
             browser.get(url)
-            browser.find_element(By.ID, "search-mendeley").send_keys(search_string)
-            sleep(1)
+            # browser.find_element(By.ID, "search-mendeley").send_keys(search_string)
+            # sleep(1)
 
             WebDriverWait(browser, 10).until(EC.element_to_be_clickable(
                 (By.ID, "onetrust-accept-btn-handler"))).click()
             submit_button = browser.find_elements(By.TAG_NAME, "button")
-            submit_button[2].click()
+            # submit_button[2].click()
             sleep(1)
             current_url = browser.current_url
-            get_article_list(browser, file)
+            if start_page <= 1:
+                get_article_list(browser, file)
 
             while True:
                 browser.get(current_url)
-                sleep(2)
+                sleep(1)
                 past_url = current_url
                 try:
-                    n_p = browser.find_elements(By.XPATH, "//*[contains(text(), 'Next')]")[0]
+                    n_p = WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.XPATH, "//*[normalize-space()='Next']")))
+                    # n_p = browser.find_elements(By.XPATH, "//*[contains(text(), 'Next')]")[0]
+                    # n_p = browser.find_element(By.XPATH, "//*[normalize-space()='Next']")
                     n_p.click()
+                    page_label = browser.find_elements(By.XPATH, "//*[contains(text(), 'Page')]")
+
+
                     sleep(1)
                     current_url = browser.current_url
+                    print(page_label[4].text)
+                    if int(page_label[4].text.split()[1]) < start_page:
+                        continue
                     if browser.current_url == past_url:
                         print("Search has done")
                         break
